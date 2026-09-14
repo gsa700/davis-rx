@@ -11,7 +11,7 @@ turns out to matter a great deal — see **Frequency tracking** below.
 
 Two findings that were not previously documented anywhere I could find:
 
-1. **The ISS transmitter's centre frequency moves several kHz with temperature**,
+1. **The ISS transmitter's center frequency moves several kHz with temperature**,
    and on a cold night it will walk far enough to break a receiver tuned to a
    fixed offset — while the signal stays strong the whole time.
 2. **A way to track it on a radio with no frequency-error detector**, which is
@@ -53,7 +53,7 @@ That looks like a marginal link getting worse in the cold. It is not. It is
 **discriminator mistuning** — the same thing you hear when you are off-frequency
 on an FM signal: full quieting on the meter, distorted audio.
 
-Measured at 11 °C, with the transmitter centred near -26.7 kHz:
+Measured at 11 °C, with the transmitter centered near -26.7 kHz:
 
 | receiver offset | good packets |
 |---|---|
@@ -93,7 +93,7 @@ has no FSK frequency-error registers at all. So the error cannot be read; it has
 to be inferred from whether packets decode.
 
 **This rules out peak-hunting.** The response is a flat-topped plateau about
-8 kHz wide, so a centre-seeking search sees no gradient whatsoever while it is
+8 kHz wide, so a center-seeking search sees no gradient whatsoever while it is
 inside the plateau, which is exactly where it normally sits.
 
 So `davis-hop` does not look for a peak. It sits on the baseline and probes the
@@ -117,7 +117,7 @@ Key properties, all deliberate:
 
 `coldwatch/afc-sim.py` simulates the loop against the measured plateau — seven
 scenarios covering convergence, drift five times faster than anything observed,
-two hours of transmitter silence, and rail behaviour under a pathological run.
+two hours of transmitter silence, and rail behavior under a pathological run.
 Worth running before changing any of the constants.
 
 **Measured result:** 14 hours with **zero resyncs**, 99.84 % slot yield over a
@@ -196,7 +196,7 @@ genuinely not fitted:
 | **`0x3`** | 6 | **5** | **996 – 1023** |
 
 Absent channels are frozen solid. `0x3` gave five distinct values in six
-packets, drifting by single counts — the behaviour of a live ADC channel, not an
+packets, drifting by single counts — the behavior of a live ADC channel, not an
 empty slot, and not a counter or flag field either.
 
 On the `/300` scaling that is **3.32 – 3.41 V**, occasionally clipping at full
@@ -238,7 +238,7 @@ where to look.
 ### The hop table
 
 DavisRFM69 carries the US channel list as **FRF triplets** — the three register
-bytes an RFM69 loads into its synthesiser. Those convert straight to megahertz:
+bytes an RFM69 loads into its synthesizer. Those convert straight to megahertz:
 
 ```
 freq_MHz = FRF * 32e6 / 2**19 / 1e6        # 32 MHz reference, 19-bit fraction
@@ -281,7 +281,7 @@ apart from inside the receiver. So: capture raw IQ with an SDR and measure.
 
 ### What the IQ said
 
-An 8-minute, 10 MHz capture centred on 906 MHz, FM-demodulated with
+An 8-minute, 10 MHz capture centered on 906 MHz, FM-demodulated with
 `np.angle(x[1:] * np.conj(x[:-1]))`:
 
 | quantity | assumed | **measured** |
@@ -338,7 +338,7 @@ station from a repeater.
 
 This is why `PARK_CHANNEL` is hop index 24 (909.4069 MHz): not the strongest
 channel, but the one furthest — 1.4 MHz — from every strong local signal the
-spectrum analyser found.
+spectrum analyzer found.
 
 **Loose settings manufacture success.** Widening RX bandwidth to 117 kHz and
 dropping preamble detection to 16 bits produced a satisfying stream of "packets"
@@ -377,6 +377,6 @@ The ISS transmits with a TI CC1020; the Vantage Pro2 console receives with a
 CC1021, which has **hardware AFC**. That is almost certainly how Davis has been
 silently compensating for this drift for twenty years without ever reporting it.
 
-## Licence
+## License
 
 GPL-3.0. See `LICENSE`.
