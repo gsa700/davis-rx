@@ -1,0 +1,9 @@
+PRE-INSTALL BASELINE  2026-09-13 11:03:49
+  mean RSSI (2 h)        -77.97
+  p5 RSSI (2 h)          -94.05
+  worst RSSI (2 h)       -101.0
+  packets/min (30 m)     22.68
+  slot yield % (30 m)    96.82
+  outdoor temp F         59.3
+  slots_total            396505.0
+  resyncs_total          0.0

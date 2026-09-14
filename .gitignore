@@ -1,0 +1,11 @@
+# Arduino/RAK build output
+*/build/
+# Python
+__pycache__/
+# ad-hoc backups kept beside the live file
+.*.bak-*
+*.bak-*
+build/
+*.elf
+*.hex
+*.map

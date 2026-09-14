@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# davis-rx — Davis Vantage Pro2 ISS receiver
+# Copyright (C) 2026  davis-rx contributors
+# Licensed under the GNU General Public License v3.0 or later.
+# This program comes with ABSOLUTELY NO WARRANTY. See LICENSE for details.
+# flash-rak — flash a compiled RAK4631 sketch to the Davis receiver over USB DFU,
+# run ON THE WXRX HOST (the RAK is on its USB, not Techbench's).
+#
+# Build the package on Techbench with:
+#     arduino-cli compile --fqbn rakwireless:nrf52:WisCoreRAK4631Board \
+#                         --export-binaries <sketchdir>
+# then copy build/rakwireless.nrf52.WisCoreRAK4631Board/<name>.ino.zip here.
+#
+# THE GOTCHA THIS SCRIPT EXISTS TO HANDLE: the 1200-baud touch drops the running
+# sketch and the BOOTLOADER enumerates as a DIFFERENT device node — ttyACM1 has
+# become ttyACM0 before now. Anything that reuses the pre-touch path fails. So we
+# re-detect after the touch instead of assuming.
+#
+# wxrx holds the port, so it is stopped first and ALWAYS restarted on the way out,
+# including on failure — a half-flashed receiver with no service is the one
+# outcome worse than a failed flash.
+set -euo pipefail
+
+PKG="${1:?usage: flash-rak <sketch>.ino.zip}"
+[[ -r "$PKG" ]] || { echo "flash-rak: cannot read $PKG" >&2; exit 1; }
+NRFUTIL="$HOME/nrfutil-venv/bin/adafruit-nrfutil"
+[[ -x "$NRFUTIL" ]] || { echo "flash-rak: $NRFUTIL missing (python3 -m venv ~/nrfutil-venv; pip install adafruit-nrfutil)" >&2; exit 1; }
+
+restart_wxrx() { echo "flash-rak: restarting wxrx"; sudo -n systemctl start wxrx || true; }
+trap restart_wxrx EXIT
+
+find_port() {   # first ACM that looks like the RAK or an nRF bootloader
+  local p
+  for p in /dev/serial/by-id/*RAK4631* /dev/serial/by-id/*nRF*  /dev/serial/by-id/*Adafruit* /dev/ttyACM*; do
+    [[ -e "$p" ]] && { readlink -f "$p"; return 0; }
+  done
+  return 1
+}
+
+APP_PORT="$(find_port)" || { echo "flash-rak: no serial port found" >&2; exit 1; }
+echo "flash-rak: app port $APP_PORT"
+
+echo "flash-rak: stopping wxrx"
+sudo -n systemctl stop wxrx
+sleep 1
+
+# The bootloader advertises a different USB PID (002a) than the app (8029).
+if lsusb | grep -q "239a:002a"; then
+  echo "flash-rak: already in the bootloader, skipping the touch"
+else
+  echo "flash-rak: 1200-baud touch to enter the bootloader"
+  # EVERY step here is best-effort ON PURPOSE. Opening at 1200 baud is itself the
+  # reset signal, so the device frequently vanishes mid-call and the follow-up
+  # ioctl fails with "Protocol error" - which means the touch WORKED. Treating
+  # that as failure aborts a flash that was already succeeding.
+  python3 - "$APP_PORT" <<'PY' || true
+import sys, time, serial
+try:
+    s = serial.Serial(sys.argv[1], 1200)
+    try: s.dtr = False
+    except Exception: pass
+    time.sleep(0.3)
+    try: s.close()
+    except Exception: pass
+except Exception as e:
+    print("flash-rak: touch raised %s (normal - the device resets instantly)" % e)
+PY
+fi
+
+# The node can vanish and come back under a different name. Poll rather than sleep.
+echo -n "flash-rak: waiting for the bootloader port"
+BOOT_PORT=""
+for _ in $(seq 1 40); do
+  sleep 0.5; echo -n "."
+  if BOOT_PORT="$(find_port 2>/dev/null)"; then [[ -e "$BOOT_PORT" ]] && break; fi
+  BOOT_PORT=""
+done
+echo
+[[ -n "$BOOT_PORT" ]] || { echo "flash-rak: bootloader never appeared" >&2; exit 1; }
+echo "flash-rak: bootloader port $BOOT_PORT$([[ "$BOOT_PORT" != "$APP_PORT" ]] && echo '  (RENAMED — this is the gotcha)')"
+
+echo "flash-rak: flashing $(basename "$PKG")"
+"$NRFUTIL" dfu serial -pkg "$PKG" -p "$BOOT_PORT" -b 115200 --singlebank
+
+echo -n "flash-rak: waiting for the application port"
+for _ in $(seq 1 40); do
+  sleep 0.5; echo -n "."
+  [[ -e /dev/serial/by-id/ ]] && ls /dev/serial/by-id/ 2>/dev/null | grep -q RAK4631 && break
+done
+echo
+echo "flash-rak: done"

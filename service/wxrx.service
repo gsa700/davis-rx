@@ -1,0 +1,23 @@
+[Unit]
+Description=wxrx - Davis ISS receiver service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=WXRX_PROM_URL=http://prometheus.example.lan:9090
+ExecStart=/usr/bin/python3 /usr/local/bin/wxrx.py
+Restart=always
+RestartSec=5
+# needs dialout for /dev/ttyACM0; DynamicUser cannot join it, so use a real user
+User=wxrx
+Group=dialout
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# rain totals + tip log live here; required with ProtectSystem=strict
+StateDirectory=wxrx
+
+[Install]
+WantedBy=multi-user.target
