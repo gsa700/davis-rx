@@ -36,5 +36,10 @@ Totals and the tip log behind the 24 h graph persist in `/var/lib/wxrx/state.jso
 The page's 24 h graphs (one tab per metric) are proxied from Prometheus via `/api/history` -
 set `WXRX_PROM_URL` in the unit (`Environment=WXRX_PROM_URL=http://<prometheus>:9090`); unset,
 the tabs say "no history source" and only the rain tab (built from the local tip log) draws.
-First install on a host with Prometheus history: seed the file from `davis_rain_counter`
-(see the backfill snippet in the 2026-09-03 memory note) so the graph is not empty for a day.
+First install on a host that already has Prometheus history for this station: seed the file
+from `davis_rain_counter` with `tools/rain-backfill.py` so the graph is not empty for a day:
+    sudo systemctl stop wxrx
+    sudo python3 tools/rain-backfill.py --prom http://<prometheus>:9090 --out /var/lib/wxrx/state.json
+    sudo chown wxrx:dialout /var/lib/wxrx/state.json
+    sudo systemctl start wxrx
+Add `--dry-run` to see what it would write without touching the file.
