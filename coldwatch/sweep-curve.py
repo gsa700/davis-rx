@@ -11,7 +11,7 @@ Run with no arguments the morning after a cold night:
 
 WHY NOT JUST USE wxrx_sweep_best_abs_khz: the yield curve has a FLAT TOP - five
 or so offsets all return 10/10 - so "best" is a tie broken arbitrarily by scan
-order. It jumped -33/-35/-35 on 2026-09-13 while the real centre moved smoothly.
+order. It jumped -33/-35/-35 on 2026-09-13 while the real center moved smoothly.
 The yield-weighted centroid and the full-yield midpoint are the honest estimators
 and they agree with each other; trust those.
 """
@@ -67,10 +67,10 @@ def fit(xkey, label):
     print(f"\n{label}: slope {slope:+.3f} kHz/F   r = {r:+.3f}   "
           f"over {min(xs):.1f}-{max(xs):.1f} F  (n={len(xs)})")
 
-fit("outdoor", "centre vs OUTDOOR temperature")
+fit("outdoor", "center vs OUTDOOR temperature")
 # The control variable. If this one also fits well, the receiver is moving too
 # and the drift cannot be blamed on the transmitter alone.
-fit("rack", "centre vs RACK temperature  (should be FLAT - it is the control)")
+fit("rack", "center vs RACK temperature  (should be FLAT - it is the control)")
 
 print("\nReminders: daytime outdoor temp is NOT the transmitter's temperature "
       "(the ISS sits in the sun), so overnight passes are the clean ones.\n"

@@ -294,7 +294,7 @@ Every assumption was right. The bugs were somewhere nobody had been looking.
 
 ### The two actual bugs
 
-**1. The transmitter was 33 kHz low, not 25.** A spectrum-analyser reading had
+**1. The transmitter was 33 kHz low, not 25.** A spectrum-analyzer reading had
 put it at −25.0 kHz, so the receiver was tuned there. The IQ said **−33.1 kHz,
 std 0.6 kHz across 27 bursts on ten different channels.** With a narrow filter
 that residual 8 kHz parks part of a ~38 kHz signal outside the passband.
@@ -352,7 +352,7 @@ for good — which is why getting the CRC right matters more than it first seems
 Hours were lost to these, and none of them are obvious:
 
 - **`beginFSK()` must be passed `tcxoVoltage = 3.3`.** Otherwise the radio
-  initialises without error and simply never receives anything.
+  initializes without error and simply never receives anything.
 - **The default `SPI` object is the WisBlock IO-slot bus, not the radio.** The
   SX1262 lives on its own `SPIClass` on `NRF_SPIM2`.
 - **The BSP exports no `PIN_LORA_*` macros.** Pins are NSS 42, DIO1 47,

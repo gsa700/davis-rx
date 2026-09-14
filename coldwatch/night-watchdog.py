@@ -6,7 +6,7 @@
 """Quiet guard for an overnight sweep run. SILENT unless something is wrong.
 
 Not a heartbeat monitor - last night's watch reported every band change, which
-was right for characterising the collapse but is noise now. Tonight the data is
+was right for characterizing the collapse but is noise now. Tonight the data is
 what matters and it lands in Prometheus and sweep.jsonl regardless of whether
 anyone is watching. The only thing worth waking up for is the run DYING.
 """
@@ -34,7 +34,7 @@ while True:
         fired.add("down"); print(f"*** wxrx scrape is DOWN {ctx}", flush=True)
     if resyncs and resyncs > 0 and "resync" not in fired:
         fired.add("resync")
-        print(f"*** LOCK LOST - resyncs={resyncs:.0f}, new behaviour, worth a look {ctx}", flush=True)
+        print(f"*** LOCK LOST - resyncs={resyncs:.0f}, new behavior, worth a look {ctx}", flush=True)
 
     # A sweep that stops advancing is the silent failure: the service looks
     # healthy, packets keep flowing, and the night's measurement is quietly gone.

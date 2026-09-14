@@ -10,8 +10,8 @@ loop converges, holds, or oscillates. This models the transmitter and replays
 the same decision rule so those questions get answered before the sketch is
 ever flashed.
 
-Plateau model is fitted to pass 37 (2026-09-14, centre -26.7 kHz):
-    offset from centre   -6.3   -4.3   -2.3   -0.3   +1.7   +3.7   +5.7
+Plateau model is fitted to pass 37 (2026-09-14, center -26.7 kHz):
+    offset from center   -6.3   -4.3   -2.3   -0.3   +1.7   +3.7   +5.7
     good out of 10          2     10     10     10     10     10      5
 """
 import random
@@ -90,12 +90,12 @@ w, r, _ = run("6 kHz over 24 cycles (8 h)",
               -30000, lambda i: -30000 + int(6000 * i / 24), 24, rng)
 assert w <= 4000 and r > 0.90, "failed to track aggressive drift"
 
-print("\n=== 4. already centred: does it sit still or hunt? ===")
-w, r, acts = run("perfectly centred, static transmitter",
+print("\n=== 4. already centered: does it sit still or hunt? ===")
+w, r, acts = run("perfectly centered, static transmitter",
                  -26700, lambda i: -26700, 40, rng)
 moves = sum(1 for a in acts if a in ("up", "down"))
 print(f"      limit cycle: {moves} moves in 40 cycles, worst excursion {w:.0f} Hz")
-assert w <= 3000 and r > 0.97, "hunts badly when already centred"
+assert w <= 3000 and r > 0.97, "hunts badly when already centered"
 
 print("\n=== 5. ISS silent for 6 cycles (2 h): must HOLD, not wander ===")
 before = -26700

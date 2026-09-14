@@ -27,7 +27,7 @@
  *   Davis console has coped with a 33 kHz offset for years without complaint.
  *
  * WHAT THIS BUYS, CONCRETELY
- *   1. AFC re-centres the radio on EVERY packet's preamble, before the payload
+ *   1. AFC re-centers the radio on EVERY packet's preamble, before the payload
  *      and before the CRC. No convergence period, no feedback loop, nothing to
  *      tune. That is the fix.
  *   2. FEI gives a per-packet frequency-error number. That is the instrument:
@@ -83,7 +83,7 @@ static const uint8_t PARK_CHANNEL = 24;
 // bursts, at room temperature.
 //
 // KEEP THIS EVEN THOUGH AFC EXISTS. AFC has a limited pull-in range (roughly
-// the receive bandwidth), so it corrects the last few kHz — it is not a licence
+// the receive bandwidth), so it corrects the last few kHz — it is not a license
 // to start 33 kHz away and hope. Land close, let AFC clean up the rest.
 static const float FREQ_OFFSET_MHZ = -0.0330f;
 
@@ -109,7 +109,7 @@ static const uint32_t INTERVAL_US   = 2562500UL;   // (41 + 0) / 16 s, station I
 static const uint32_t MISS_GUARD_US = 150000UL;    // 150 ms
 static const uint16_t MAX_MISSES    = 20;          // ~51 s of silence
 
-// FEI/AFC registers are in units of the synthesiser step: FXOSC / 2^19.
+// FEI/AFC registers are in units of the synthesizer step: FXOSC / 2^19.
 static const float F_STEP_HZ = 32000000.0f / 524288.0f;   // 61.035 Hz
 
 enum State { ACQUIRE, TRACK };
@@ -324,7 +324,7 @@ void loop() {
   bool ok = (calc == rx);
 
   // Self-diagnosis for the one real bring-up unknown: if the reversed bytes fail
-  // but the RAW bytes pass, this radio de-serialises the other way round and
+  // but the RAW bytes pass, this radio de-serializes the other way round and
   // revByte() must be dropped. Cheap to check, and it turns a baffling
   // everything-fails-CRC session into one obvious log line.
   if (!ok) {
@@ -384,7 +384,7 @@ void loop() {
  * BRING-UP NOTES — the two things that are genuinely unknown until hardware runs
  *
  * 1. BIT ORDER. The SX1262 handed us bit-reversed bytes, so revByte() is needed
- *    there. Both radios de-serialise MSB-first, so the same should apply here —
+ *    there. Both radios de-serialize MSB-first, so the same should apply here —
  *    but "should" is doing work in that sentence. The sketch checks itself: if
  *    CRC fails reversed and passes raw, it prints a loud line and counts it in
  *    STATUS raworder=. If that counter climbs, delete the revByte() loop.

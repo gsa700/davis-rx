@@ -55,7 +55,7 @@ static const float DAVIS_US_HOP[51] = {
 // Park on hop index 24 = 909.4069 MHz.
 // NOT chosen by RSSI: hop idx 20 (912.9191) turned out to have a WIDE -55 dBm
 // mesh signal sitting on it - 33 dB stronger than the ~-88 dBm Davis burst, so
-// the receiver was permanently captured by it. Spectrum analyser peaks at
+// the receiver was permanently captured by it. Spectrum analyzer peaks at
 // 907.975/911.025/914.925/915.850/916.150/916.375 are the local strong signals;
 // 909.4069 is the furthest Davis channel from all of them (1.4 MHz clear).
 static const uint8_t PARK_CHANNEL = 24;
@@ -200,7 +200,7 @@ void loop() {
 }
 
 /* NOTES — if nothing decodes, vary in this order:
- *   1. PARK_CHANNEL — try several; a neighbour may be quieter.
+ *   1. PARK_CHANNEL — try several; a neighbor may be quieter.
  *   2. RX_BW_KHZ — try 50.0 or 78.2.
  *   3. DAVIS_SYNC — some builds expect only 0xCB, or a 4-byte sync.
  *   4. Drop the sync word entirely and dump raw bytes to see if anything

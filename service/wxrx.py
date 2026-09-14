@@ -78,7 +78,7 @@ state = {
     # keyed by int msgtype -> {count, last_raw, last_seen, bytes}
     "msgtypes": {},
     # RAK1906 (BME680) fitted to the RAK 2026-09-13. RACK-ambient temp/hum (the
-    # case sits on top of the rack, dead centre, and the rack has a thermostatic
+    # case sits on top of the rack, dead center, and the rack has a thermostatic
     # fan — so this is a rack thermal sensor, NOT room temperature and NOT case
     # self-heating) + the station pressure we actually wanted it for.
     # Stay None on firmware without the sensor line.
@@ -469,7 +469,7 @@ def metrics():
       st["sweep_best_abs_khz"])
     g("wxrx_sweep_best_good", "Good packets at the peak offset, out of the probe slots tried",
       st["sweep_best_good"])
-    g("wxrx_sweep_pegged", "1 = peak sat at an end of the sweep, so the real centre is further out",
+    g("wxrx_sweep_pegged", "1 = peak sat at an end of the sweep, so the real center is further out",
       st["sweep_pegged"])
     g("wxrx_sweep_age_seconds", "Seconds since the last completed sweep pass",
       None if st["sweep_epoch"] is None else round(time.time() - st["sweep_epoch"], 1))
@@ -842,7 +842,7 @@ function drawLine(svg, tab, d, hours){
 // chart a knee is just another slope, and the eye cannot separate it from the
 // day/night cycle it rides on.
 // Blue dots are the raw samples; the pale line is the binned mean, drawn in the
-// text colour so it reads as an annotation and not as a second data series
+// text color so it reads as an annotation and not as a second data series
 // (same rule as the rose needle).
 function drawScatter(svg, tab, d){
  const W=800,H=300,L=48,R=12,T=22,BOT=34,PH=H-T-BOT,pw=W-L-R;
@@ -908,7 +908,7 @@ function drawScatter(svg, tab, d){
 // ---------------- wind rose into an svg ----------------
 // 16 sectors, wedge length = share of non-calm samples from that direction;
 // calm (< 1 mph) reported as a %. Needle = current 10-minute mean direction,
-// drawn in the text colour so it is not read as a second data series.
+// drawn in the text color so it is not read as a second data series.
 function drawRose(svg, r, opts){
  const {W,H,compact,needle}=opts, cx=W/2, cy=H/2, Rr=Math.min(W,H)/2-(compact?20:34);
  if(!r||r.error||!r.total){ svg.innerHTML=`<text class=ax x=${cx} y=${cy} text-anchor=middle>${(r&&r.error)||'no data yet'}</text>`; return ''; }

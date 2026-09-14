@@ -57,7 +57,7 @@ SX1262 radio = new Module(LORA_NSS, LORA_DIO1, LORA_NRST, LORA_BUSY, SPI_LORA);
 // for the APRS beacon's `b` field.
 //
 // TEMPERATURE AND HUMIDITY ARE RACK AMBIENT, NOT BASEMENT AND NOT SELF-HEATING.
-// His correction, 2026-09-13: the case sits on TOP of the rack, dead centre, and
+// His correction, 2026-09-13: the case sits on TOP of the rack, dead center, and
 // ~80 F is genuinely what the air inside the rack is doing — the basement itself
 // is much cooler.  The rack has a THERMOSTATICALLY CONTROLLED FAN, so expect a
 // sawtooth, and treat this as a rack thermal sensor rather than a room one.
@@ -93,9 +93,9 @@ static const uint8_t  NUM_CHANNELS = 51;
 // Reacquire on hop idx 24 = 909.4069 MHz.  NOT chosen by RSSI — that mistake
 // cost an hour on idx 20, which carries a wide -55 dBm mesh signal ~33 dB
 // louder than the Davis.  909.4069 is the Davis channel furthest (1.4 MHz)
-// from every strong local signal the spectrum analyser found.
+// from every strong local signal the spectrum analyzer found.
 static const uint8_t PARK_CHANNEL = 24;
-// The transmitter's centre frequency MOVES WITH TEMPERATURE, so this is a
+// The transmitter's center frequency MOVES WITH TEMPERATURE, so this is a
 // starting point, not a constant.  -33.1 kHz was measured from IQ in August
 // (std 0.6 kHz, 27 bursts); by 52 F on 2026-09-14 the ISS had walked to about
 // -26.7 kHz and the fixed -33 kHz offset was down to 2 good packets in 10 while
@@ -113,7 +113,7 @@ static int32_t offsetHz = NOMINAL_OFFSET_HZ;    // live, tracked
 // The measured response is a FLAT-TOPPED PLATEAU about 8 kHz wide (10/10 good
 // from -31 to -23 kHz on pass 37) with rolloff beyond.  Two consequences:
 //   - fine tuning is pointless; we only need to stay near the middle, and
-//   - a centre-seeking search sees no gradient at all while inside the plateau.
+//   - a center-seeking search sees no gradient at all while inside the plateau.
 // So we do not hunt for a peak.  We sit on the baseline and probe the two
 // SHOULDERS, +/- AFC_PROBE_HZ out where the rolloff actually is.  Whichever
 // shoulder hears more, that is the direction the transmitter has moved.

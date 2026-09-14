@@ -4,7 +4,7 @@
 // This program comes with ABSOLUTELY NO WARRANTY. See LICENSE for details.
 
 /*
- * davis-sweep — measure the ISS transmitter's ACTUAL centre frequency by
+ * davis-sweep — measure the ISS transmitter's ACTUAL center frequency by
  * sweeping the receiver across it, and log it against temperature.
  *
  * WHY THIS EXISTS
@@ -22,11 +22,11 @@
  *   has hardware AFC and FEI registers.  The SX126x dropped them.  That is the
  *   whole reason this sketch has to exist.)
  *
- *   So we measure it the honest way: step our OWN centre frequency across a
+ *   So we measure it the honest way: step our OWN center frequency across a
  *   range of offsets and record the CRC-valid yield at each one.  The peak of
  *   that curve is where the transmitter actually is, measured through the real
  *   receive chain — filter shape, sync detector and CRC included.  That is a
- *   better number than a spectrum-analyser reading, because it is the quantity
+ *   better number than a spectrum-analyzer reading, because it is the quantity
  *   that actually decides whether we get a packet.
  *
  * THE INTERLEAVE — why this does not cost us the station
@@ -75,7 +75,7 @@ SX1262 radio = new Module(LORA_NSS, LORA_DIO1, LORA_NRST, LORA_BUSY, SPI_LORA);
 // for the APRS beacon's `b` field.
 //
 // TEMPERATURE AND HUMIDITY ARE RACK AMBIENT, NOT BASEMENT AND NOT SELF-HEATING.
-// His correction, 2026-09-13: the case sits on TOP of the rack, dead centre, and
+// His correction, 2026-09-13: the case sits on TOP of the rack, dead center, and
 // ~80 F is genuinely what the air inside the rack is doing — the basement itself
 // is much cooler.  The rack has a THERMOSTATICALLY CONTROLLED FAN, so expect a
 // sawtooth, and treat this as a rack thermal sensor rather than a room one.
@@ -119,7 +119,7 @@ static const float BASE_OFFSET_MHZ = -0.0330f;
 // ---- the sweep ----
 // +/-20 kHz in 2 kHz steps.  The span is set by what we are hunting: the rate
 // falls off a cliff somewhere below 62 F, and 156 kHz of rxBw should not care
-// about a few kHz, so if the cause is centre-frequency drift the shift must be
+// about a few kHz, so if the cause is center-frequency drift the shift must be
 // big — tens of kHz.  2 kHz resolution is finer than we need to find a peak and
 // still cheap.  Widen SWEEP_MIN/MAX if a pass comes back with the peak pinned
 // at an end, which would mean the transmitter has walked outside the window.
@@ -225,7 +225,7 @@ static void finishProbe() {
     Serial.print(F(" of="));              Serial.print(SLOTS_PER_PROBE);
     Serial.print(F(" rxtempc="));         Serial.print(readCPUTemperature(), 1);
     // A peak pinned at either end means the transmitter has walked outside the
-    // window and the real centre is further out than we looked.
+    // window and the real center is further out than we looked.
     if (bestIdx == 0 || bestIdx == NUM_PROBES - 1) Serial.print(F(" PEG=1"));
     Serial.println();
     pass++; probeIdx = 0; bestGood = 0; bestIdx = 0;
