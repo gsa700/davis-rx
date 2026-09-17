@@ -18,8 +18,8 @@ Two findings that were not previously documented anywhere I could find:
    every SX126x. The RFM69 has hardware AFC; the SX1262 deliberately does not
    expose one outside LoRa.
 
-There is also an open question about ISS message type `0x3`, with data, at the
-bottom.
+ISS message type `0x3` — never identified by the community — is also decoded here, with two
+full day/night cycles of evidence, at the bottom.
 
 ## The cold drift
 
@@ -164,7 +164,7 @@ Enough to write your own receiver:
 | type | meaning |
 |---|---|
 | `0x2` | supercapacitor voltage |
-| `0x3` | **unidentified — see below** |
+| `0x3` | **solar-derived supply node — see below** |
 | `0x4` | UV index |
 | `0x5` | rain rate |
 | `0x6` | solar radiation |
@@ -183,29 +183,46 @@ right — that factor is inherited from prior work and is **not independently
 verified here**). On UV and solar radiation, which are not voltages, a pinned
 1023 means no sensor is fitted.
 
-### Message type 0x3 — open question, with data
+### Message type 0x3 — solar-derived, measured over two day/night cycles
 
 `0x3` is the one type the reverse-engineering community never pinned down. It is
-**not** an absent sensor. Logged alongside two channels whose sensors are
-genuinely not fitted:
+**not** an absent sensor, and it is **not** a fixed supply rail: it tracks the sun.
 
-| type | samples | distinct values | range |
+8,906 logged packets across two full day/night cycles, with daylight inferred from
+the `0x7` panel channel itself:
+
+| channel | day mean | night mean | swing |
 |---|---|---|---|
-| `0x4` UV *(not fitted)* | 18 | **1** | 1023 only |
-| `0x6` solar rad *(not fitted)* | 17 | **1** | 1023 only |
-| **`0x3`** | 6 | **5** | **996 – 1023** |
+| `0x7` solar panel | 751.6 | 23.4 | **+728** |
+| `0x2` supercapacitor | 948.5 | 340.0 | **+609** |
+| **`0x3`** | **984.2** | **414.5** | **+570** |
+| `0x4` UV *(not fitted)* | 1023.0 | 1023.0 | 0 |
+| `0x6` solar radiation *(not fitted)* | 1023.0 | 1023.0 | 0 |
 
-Absent channels are frozen solid. `0x3` gave five distinct values in six
-packets, drifting by single counts — the behavior of a live ADC channel, not an
-empty slot, and not a counter or flag field either.
+The hourly profile is unmistakable: flat at ~352 all night, 830 at 07:00 as the
+panel comes up, a ~1014 plateau through the day, 498 at 20:00, back to ~352 by
+21:00. Channels whose sensors are genuinely absent sit frozen at 1023 instead.
 
-On the `/300` scaling that is **3.32 – 3.41 V**, occasionally clipping at full
-scale. A regulated supply rail under a bursty load fits: the ISS is transmitting
-at the moment it samples.
+**Best reading: a second capacitor or supply node on the ISS charging circuit.**
+It sits above the supercapacitor both day (984 vs 948) and night (414 vs 340), and
+its night floor of ~1.17 V on the `/300` scaling is far too low to be running the
+electronics — so it is not the board's rail. A charge-side node ahead of the
+supercap, or a second storage element, fits the shape. Not proven.
 
-Caveats: six samples, and this particular station is externally powered with no
-battery fitted, which may not be representative. `service/msgtype-log.py` logs
-raw payloads for this and the two control channels if you want to add data.
+**A caution that cost us the first answer.** Six packets sampled over four minutes
+one afternoon gave 996–1023, which looked exactly like a regulated rail clipping at
+full scale. That window sat entirely inside the daytime plateau, where the channel
+really is near-constant. **A short sample cannot tell a constant from the flat top
+of a cycle** — log a full day and night before concluding anything about a channel
+that might follow the sun or the temperature.
+
+Note `1023` here is simply the top of the 10-bit range (~3.41 V), which this channel
+reaches for most of every day. That is real measurement clipping, not a "no sensor"
+sentinel — unlike `0x4` and `0x6`, which are not voltages at all.
+
+This station is externally powered with no battery fitted, which may not be
+representative of a stock ISS. `service/msgtype-log.py` logs raw payloads for this
+and the control channels if you want to add data.
 
 ## What is in here
 
