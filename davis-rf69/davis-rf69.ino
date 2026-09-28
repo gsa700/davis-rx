@@ -85,12 +85,28 @@ static const uint8_t PARK_CHANNEL = 24;
 // KEEP THIS EVEN THOUGH AFC EXISTS. AFC has a limited pull-in range (roughly
 // the receive bandwidth), so it corrects the last few kHz — it is not a license
 // to start 33 kHz away and hope. Land close, let AFC clean up the rest.
-static const float FREQ_OFFSET_MHZ = -0.0330f;
+// THIS Feather's figure, measured 2026-09-26 on the bench: at -0.0330 (the RAK's)
+// real packets showed FEI avg +10 kHz; at -0.0230 FEI avg +1.8 kHz over 75.
+static const float FREQ_OFFSET_MHZ = -0.0230f;
+// Receiver ignores anything weaker (RegRssiThresh). PER SITE: on the bench real
+// packets arrive at -55..-62 and noise syncs at -88..-92, and -80 took good
+// packets from 20% of slots to 88%. WHERE THE SX1262 RECEIVER LIVES it sees the ISS at about
+// -76 dBm, only 4 dB above this: re-measure there and lower it (-85?) first.
+static const float RSSI_THRESH_DBM = -80.0f;
 
 // ---- Davis link parameters (same measurements as davis-hop) ----
 static const float   BITRATE_KBPS  = 19.2f;
 static const float   DEVIATION_KHZ = 9.9f;    // ISS side; 4.8 is the console's RX setting
-static const float   RX_BW_KHZ     = 156.2f;  // wide on purpose; also sets the AFC pull-in range
+// RFM69 bandwidths are fixed steps (FXOSC / (mant * 2^(exp+2)), mant 16/20/24):
+// ... 125, 166.7, 200 ... kHz. RadioLib accepts only a value within 0.1 kHz of a
+// step and returns -104 otherwise; 156.2 did exactly that on first flash
+// (2026-09-26) and begin() never returned OK. Wide on purpose.
+static const float   RX_BW_KHZ     = 166.7f;
+// The AFC's pull-in is set by its OWN register, RegAfcBw (0x1A), not by RxBw;
+// left alone it stays at the 50 kHz reset default. enableAfc() writes it to the
+// same step as RX_BW_KHZ: mant 24 (field 0b10), exp 1 -> 166.7 kHz, with
+// DccFreqAfc left at its default 0b100.
+static const uint8_t AFC_BW_REG    = 0x80 | (0b10 << 3) | 1;
 static const uint8_t PACKET_LEN    = 10;
 static uint8_t DAVIS_SYNC[]        = {0xCB, 0x89};
 
@@ -196,6 +212,7 @@ static void enableAfc() {
   // a packet is never corrected using the last packet's error.
   m->SPIwriteRegister(RADIOLIB_RF69_REG_AFC_FEI,
                       RADIOLIB_RF69_AFC_AUTOCLEAR_ON | RADIOLIB_RF69_AFC_AUTO_ON);
+  m->SPIwriteRegister(RADIOLIB_RF69_REG_AFC_BW, AFC_BW_REG);
 #if USE_AFC_LOW_BETA
   m->SPIwriteRegister(RADIOLIB_RF69_REG_AFC_CTRL, RADIOLIB_RF69_AFC_LOW_BETA_ON);
   m->SPIwriteRegister(RADIOLIB_RF69_REG_TEST_DAGC, RADIOLIB_RF69_CONTINUOUS_DAGC_LOW_BETA_ON);
@@ -215,12 +232,37 @@ void setup() {
   Serial.println(F("=== Davis ISS receiver — RFM69 with hardware AFC ==="));
 
   float freq = DAVIS_US_HOP[PARK_CHANNEL] + FREQ_OFFSET_MHZ;
-  int st = radio.begin(freq, BITRATE_KBPS, DEVIATION_KHZ, RX_BW_KHZ,
-                       13 /*dBm, TX unused*/, 16 /*preamble bits*/);
+  // begin() with RadioLib's defaults, then each setting on its own line so a
+  // rejected value names itself (the all-in-one begin(freq, br, ...) reported
+  // only a bare -104 on first flash: 156.2 kHz is not an RxBw step).
+  //
+  // NEEDS RADIOLIB 7.8.1 OR LATER. 7.7.x's begin() always returned -25: its
+  // default sync word landed on a PhysicalLayer stub (our report, RadioLib
+  // #1878). 7.8.0's fix called itself forever and hard-faulted this board;
+  // 7.8.1 is the working fix. Sync word, shaping, encoding and CRC are still
+  // set explicitly below, so nothing here depends on begin()'s defaults.
+  int st = radio.begin();
   if (st != RADIOLIB_ERR_NONE) {
     Serial.print(F("begin FAILED: ")); Serial.println(st);
     while (true) delay(1000);
   }
+  bool ok = true;
+  auto step = [&](const __FlashStringHelper *what, int r) {
+    if (r == RADIOLIB_ERR_NONE) return;
+    Serial.print(what); Serial.print(F(" FAILED: ")); Serial.println(r);
+    ok = false;
+  };
+  step(F("setFrequency"),          radio.setFrequency(freq));
+  step(F("setBitRate"),            radio.setBitRate(BITRATE_KBPS));
+  step(F("setRxBandwidth"),        radio.setRxBandwidth(RX_BW_KHZ));
+  step(F("setFrequencyDeviation"), radio.setFrequencyDeviation(DEVIATION_KHZ));
+  step(F("setPreambleLength"),     radio.setPreambleLength(16));
+  step(F("setEncoding"),           radio.setEncoding(RADIOLIB_ENCODING_NRZ));
+  // Noise matching the 16-bit sync arrives every few seconds at -88..-92 dBm, and
+  // each false sync occupies the receiver (and restarts AFC on noise) right when
+  // a real packet may be due. Real packets at the desk arrive at -55..-60 dBm.
+  step(F("setRSSIThreshold"),      radio.setRSSIThreshold(RSSI_THRESH_DBM));
+  if (!ok) { Serial.println(F("radio setup FAILED")); while (true) delay(1000); }
 
   // maxErrBits = 0: the sync word must match exactly. Davis's 0xCB89 is only 16
   // bits, so tolerating errors here invites false syncs on noise, and a false

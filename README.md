@@ -133,13 +133,14 @@ settled three-hour window (6 missed slots of 3844), CRC-bad 0.28 %.
   because a strong local signal on an adjacent hop channel wasted an hour.
 
 `davis-rf69/` is an RFM69 port for an Adafruit Feather M0 RFM69HCW
-(CS=8, IRQ=3, RST=4). It compiles but **had not been run on hardware at the time
-of writing** — the SX1262 proved sufficient once the AFC existed. Hardware is now
-on hand to test it, and the interesting comparison is not sensitivity but
-frequency handling: the RFM69 has a **hardware AFC and reports frequency error
-directly**, so it should produce a far cleaner drift measurement than the
-software loop's ±1.5 kHz limit cycle can. The two may end up complementary — the
-SX1262 as the receiver, the RFM69 as the instrument.
+(CS=8, IRQ=3, RST=4). **It has now run on hardware** (first light 2026-09-26):
+bit order and sync order were right first time, the hardware AFC tracks, and at
+the bench it catches about 88% of the ISS's slots with a simple wire whip. The
+interesting part is not sensitivity but frequency handling: the RFM69 has a
+**hardware AFC and reports frequency error directly**, so it gives a far cleaner
+drift measurement than the software loop's ±1.5 kHz limit cycle can. The two may
+end up complementary — the SX1262 as the receiver, the RFM69 as the instrument.
+It needs **RadioLib 7.8.1 or later** (see the gotchas below).
 
 ## Protocol notes
 
@@ -231,7 +232,7 @@ and the control channels if you want to add data.
 | `davis-hop/` | **the receiver.** Hop follower with the AFC. Start here. |
 | `davis-sweep/` | measurement sketch — sweeps the offset to map the plateau |
 | `davis-rx/` | single-channel receiver, the simplest starting point |
-| `davis-rf69/` | RFM69 port, compiles, **never run on hardware** |
+| `davis-rf69/` | RFM69 port (Feather M0); runs, logs frequency error. Needs RadioLib ≥ 7.8.1 |
 | `raw-dump/`, `rssi-scan/`, `burst-watch/` | bring-up and RF-siting diagnostics |
 | `service/wxrx.py` | parses the serial stream, serves a web page + Prometheus metrics |
 | `service/msgtype-log.py` | logs raw message-type payloads (for the 0x3 question) |
@@ -363,6 +364,23 @@ at −116 dBm with random station IDs and uniformly bad CRCs. It briefly looked
 like reception was working. It was false syncs on noise. **Once the CRC is
 correct it becomes a true accept/reject signal**, and that ambiguity disappears
 for good — which is why getting the CRC right matters more than it first seems.
+
+## Feather M0 RFM69 + RadioLib gotchas
+
+- **Use RadioLib 7.8.1 or later.** In 7.7.x, `RF69::begin()` always returns -25
+  (`RADIOLIB_ERR_UNSUPPORTED`): its default sync word lands on a `PhysicalLayer`
+  stub. 7.8.0's first fix called itself recursively and hard-faulted the board
+  inside `begin()`. Reported and fixed upstream as
+  [jgromes/RadioLib#1878](https://github.com/jgromes/RadioLib/issues/1878).
+- **Receive bandwidth must be one of the RFM69's fixed steps** (…125, 166.7,
+  200… kHz). Anything else, 156.2 for example, returns -104.
+- **The AFC's pull-in range is its own register, `RegAfcBw` (0x1A),** not the
+  receive bandwidth; left alone it stays at the 50 kHz reset default.
+- **Set an RSSI threshold** (`setRSSIThreshold`). Noise that matches the 16-bit
+  sync word arrives every few seconds; every false sync ties up the receiver.
+  Measure your own site: too high a threshold throws away real packets.
+- A board that hard-faults ignores the 1200-baud reset: double-tap reset for the
+  UF2 bootloader (the `FEATHERBOOT` drive) and flash from there.
 
 ## RAK4631 + RadioLib gotchas
 
