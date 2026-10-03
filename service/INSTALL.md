@@ -1,4 +1,9 @@
-# wxrx install (on the Pi Zero 2W, hostname `wxrx`)
+# wxrx install
+
+Any Pi with a USB port will do: it currently runs on a Compute Module 5 that
+also drives a dashboard, and first ran on a Pi Zero 2W (gotchas for that below).
+The service is stdlib Python plus pyserial. Flash the receiver from the same
+host with `tools/flash-rak` (adafruit-nrfutil in a venv).
 
     sudo apt update && sudo apt install -y python3-serial
     sudo useradd --system --no-create-home --shell /usr/sbin/nologin wxrx
