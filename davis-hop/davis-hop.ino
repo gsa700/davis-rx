@@ -24,7 +24,8 @@
  *
  * STATE MACHINE — deliberately park-and-reacquire, not free-run-forever.
  *   ACQUIRE : sit on PARK_CHANNEL until a CRC-valid packet arrives.  Costs up
- *             to ~2 min, and is the ONLY way to re-establish phase after the
+ *             to ~2 min when the offset is right (see the rescue scan for when
+ *             it is not), and is the ONLY way to re-establish phase after the
  *             transmitter has been away (its schedule restarts arbitrarily).
  *   TRACK   : hop with the transmitter, re-anchoring the clock on every good
  *             packet so drift can never accumulate.
@@ -101,7 +102,11 @@ static const uint8_t PARK_CHANNEL = 24;
 // -26.7 kHz and the fixed -33 kHz offset was down to 2 good packets in 10 while
 // -27 kHz was still getting 10 of 10.  The link is not weak -- it is mistuned.
 // Hence the AFC loop below.
-static const int32_t NOMINAL_OFFSET_HZ = -33000;
+// The restart point moved -33000 -> -28000 on 2026-10-02.  Through Sep/Oct the
+// loop has lived between -25.5 and -33 kHz, so -33 is the plateau's edge, not
+// its middle: a power cycle restarted 6 kHz off and took 7.5 min to acquire a
+// transmitter in plain view.  -28 is the measured centre of that range.
+static const int32_t NOMINAL_OFFSET_HZ = -28000;
 static int32_t offsetHz = NOMINAL_OFFSET_HZ;    // live, tracked
 
 // ---- AFC: balanced-edge tracking -------------------------------------------
@@ -148,31 +153,41 @@ static uint32_t afcCycles  = 0, afcMoves = 0;
 //
 // The AFC above only runs in TRACK, which is useless if drift has already got
 // bad enough that we cannot acquire at all -- exactly the state a cold morning
-// could leave us in after an overnight ISS gap.  So if ACQUIRE goes quiet for
-// long enough, walk the offset across the plausible band until something
-// decodes.  This is also why the tracked offset is deliberately NOT persisted
-// to flash: the receiver can always find its way home from the nominal value,
-// and a stale or corrupt saved offset would be a way to fail to.
+// could leave us in after an overnight ISS gap, or a power cycle that restarts
+// us at the nominal offset.  So if ACQUIRE goes quiet, walk the offset across
+// the plausible band until something decodes.  The tracked offset is still
+// deliberately NOT persisted to flash: the receiver can always find its way
+// home from the nominal value, and a stale or corrupt saved offset would be a
+// way to fail to.
 //
-// WINTER RANGE (widened 2026-09-14, BEFORE the cold rather than after).  The
-// transmitter moves LESS negative as it cools, and the measured slope is not
-// constant -- three separate windows gave -0.305, -0.146 and -0.417 kHz/F,
-// because an AT-cut crystal's tempco is cubic.  Projecting from ~50 F down to
-// -10 F therefore lands anywhere between about -18 kHz and -2 kHz.  The old
-// window (-48k..-14k) covered only the shallow end: on a cold morning the
-// receiver could have gone deaf and then swept a range the transmitter had
-// already walked out of -- the exact failure this scan exists to prevent,
-// reappearing at a different temperature.  So the scan now spans -55k..+5k,
-// which also allows for the offset crossing zero if it keeps climbing.
-// Cost is worst-case acquisition time, ~11 min instead of ~6, and that only
-// applies when we are already deaf.
-static const uint32_t ACQ_SCAN_AFTER_MS = 180000UL;  // 3 min of silence
-static const uint32_t ACQ_DWELL_MS      = 21000UL;   // ~8 slots per step
+// WHY THE SCAN CANNOT HOP (2026-10-02).  While deaf we have no timing anchor,
+// so we cannot follow the transmitter; whether we park or hop blind, the ISS
+// lands on our channel once per 51-slot cycle (~131 s) on average.  That is a
+// hard floor of ONE test per ~131 s per offset.  The old scan (21 s dwell,
+// 2 kHz steps from -55 kHz up) ignored it: each step had a ~1-in-6 chance of
+// the ISS visiting during the dwell, so a correct offset was walked past five
+// times in six.
+//
+// So the scan now (1) dwells one full cycle plus margin per step, so a step
+// inside the plateau CANNOT be missed; (2) spirals outward from the offset we
+// were last at (nominal after a power cycle, the tracked value after a TRACK
+// dropout): +step, -step, +2 steps, -2 steps ... so the likeliest offsets are
+// tested first, positive side first because cold moves the transmitter less
+// negative; (3) steps 4 kHz, half the ~8 kHz plateau, so one step always lands
+// inside it.  The band stays -55k..+5k (winter range: three measured slopes of
+// -0.305, -0.146 and -0.417 kHz/F are a cubic AT-cut tempco, and ~50 F -> -10 F
+// projects to anywhere between -18 kHz and -2 kHz).  Cost: a transmitter
+// 10 kHz from where we start is found in ~11 min worst case, deterministically,
+// instead of ~16 min expected with a long tail; one inside the plateau is found
+// within the first cycle, before the scan even starts.
+static const uint32_t ACQ_DWELL_MS      = 135000UL;  // 51 slots x 2.5625 s = 130.7 s, + margin
 static const int32_t  ACQ_SCAN_MIN_HZ   = -55000;
 static const int32_t  ACQ_SCAN_MAX_HZ   =   5000;
-static const int32_t  ACQ_SCAN_STEP_HZ  = 2000;
+static const int32_t  ACQ_SCAN_STEP_HZ  = 4000;
 static uint32_t acquireSinceMs = 0, lastAcqStepMs = 0;
 static bool     acqScanning    = false;
+static int32_t  acqCentreHz    = 0;
+static uint16_t acqStep        = 0;
 
 // ---- Davis link parameters ----
 static const float   BITRATE_KBPS  = 19.2f;
@@ -426,17 +441,26 @@ void loop() {
   // modes. Parked, a packet is only due every ~131 s, so a 100 ms read is free.
   if (state == ACQUIRE) {
     readEnv();
-    // Rescue scan: drift can outrun the fixed offset far enough that we cannot
-    // acquire at all.  Walk the plausible band until something decodes.
-    if (millis() - acquireSinceMs > ACQ_SCAN_AFTER_MS &&
+    // Rescue scan: see the constants above for why it dwells a full cycle per
+    // step and spirals outward instead of sweeping from one end.
+    if (millis() - acquireSinceMs > ACQ_DWELL_MS &&
         millis() - lastAcqStepMs  > ACQ_DWELL_MS) {
       lastAcqStepMs = millis();
-      if (!acqScanning) { acqScanning = true; offsetHz = ACQ_SCAN_MIN_HZ; }
-      else {
-        offsetHz += ACQ_SCAN_STEP_HZ;
-        if (offsetHz > ACQ_SCAN_MAX_HZ) offsetHz = ACQ_SCAN_MIN_HZ;
-      }
-      Serial.print(F("AFC acquire-scan offset_hz=")); Serial.println(offsetHz);
+      if (!acqScanning) { acqScanning = true; acqCentreHz = offsetHz; acqStep = 0; }
+      // +1, -1, +2, -2 ... steps around the centre, skipping anything outside
+      // the band; once the band is exhausted, start over at the centre.
+      const uint16_t maxStep =
+          2 * (uint16_t)((ACQ_SCAN_MAX_HZ - ACQ_SCAN_MIN_HZ) / ACQ_SCAN_STEP_HZ) + 2;
+      int32_t cand;
+      do {
+        acqStep++;
+        if (acqStep > maxStep) { acqStep = 0; cand = acqCentreHz; break; }
+        const int32_t k = (acqStep + 1) / 2;
+        cand = acqCentreHz + ((acqStep & 1) ? k : -k) * ACQ_SCAN_STEP_HZ;
+      } while (cand < ACQ_SCAN_MIN_HZ || cand > ACQ_SCAN_MAX_HZ);
+      offsetHz = cand;
+      Serial.print(F("AFC acquire-scan step=")); Serial.print(acqStep);
+      Serial.print(F(" offset_hz=")); Serial.println(offsetHz);
       hopTo(curIdx);
     }
   }

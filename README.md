@@ -111,9 +111,19 @@ Key properties, all deliberate:
 - **Silence on both shoulders means hold, not search.** It usually means the ISS
   is quiet; chasing it would walk the receiver off a transmitter that is not
   transmitting.
-- **The offset is not persisted.** An ACQUIRE rescue scan walks -55 kHz to
-  +5 kHz after three minutes of silence, so the receiver can always find its way
-  home from nominal. A stale or corrupt saved offset would be a way to fail to.
+- **The offset is not persisted.** An ACQUIRE rescue scan covers -55 kHz to
+  +5 kHz, so the receiver can always find its way home from nominal. A stale or
+  corrupt saved offset would be a way to fail to.
+- **The rescue scan cannot hop, so it dwells.** While deaf there is no timing
+  anchor, and the ISS lands on the parked channel once per 51-slot cycle
+  (~131 s) whether you park or hop blind. That is a hard floor of one test per
+  cycle per offset. The first scan dwelt 21 s per 2 kHz step and so walked past
+  the right offset five times in six; it now dwells a full cycle per step, so a
+  step inside the plateau cannot be missed, and spirals outward from the last
+  offset in 4 kHz steps (positive side first, because cold moves the
+  transmitter less negative) instead of sweeping from one end. The nominal
+  start moved from -33 kHz to -28 kHz, the measured centre of the autumn range,
+  for the same reason: a restart went from 7.5 minutes to 30 seconds.
 
 `coldwatch/afc-sim.py` simulates the loop against the measured plateau — seven
 scenarios covering convergence, drift five times faster than anything observed,
