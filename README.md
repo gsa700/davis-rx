@@ -123,6 +123,35 @@ Worth running before changing any of the constants.
 **Measured result:** 14 hours with **zero resyncs**, 99.84 % slot yield over a
 settled three-hour window (6 missed slots of 3844), CRC-bad 0.28 %.
 
+### Checked against a hardware FEI
+
+The loop above infers the offset from which shoulder decodes. Whether that
+inference lands on the real transmitter frequency was an open question until an
+RFM69 (the `davis-rf69/` Feather port, which reads frequency error from a
+register) ran beside it through the first 5 °C night of the season.
+
+| | SX1262, software AFC | RFM69, hardware AFC + FEI |
+|---|---|---|
+| Missed slots, 24 h | 0.03 % | 8–14 % |
+| Resyncs | 0 | — |
+| Offset moved, 18 °C → 5 °C | +3 kHz | +3 kHz |
+
+Joined hour by hour over 27 hours, the two offset curves are the same line. The
+RFM69's reading sits a constant **7.1 kHz** lower (σ 0.67 kHz), which is about
+8 ppm at 915 MHz — the RFM69's plain crystal against the RAK4631's TCXO, not a
+property of the transmitter. The software loop's centroid is **not biased**; it
+tracks the same tempco the hardware register reports, with the TCXO as the
+better absolute reference.
+
+That also settles the RFM69 sign convention left open in the sketch: true
+offset is `park + fei_hz`, positive FEI meaning the transmitter is above the
+park frequency.
+
+The yield gap is not the AFC: the RFM69 sat on a bench with a wire whip next to
+a PC, the RAK4631 on a proper 900 MHz antenna. But the result stands — the
+software loop, with no error register to lean on, lost nothing on the night
+that used to cost half the packets.
+
 ## Hardware
 
 - **RAK4631** WisBlock Core (nRF52840 + SX1262) on a WisBlock Base.
@@ -138,8 +167,9 @@ bit order and sync order were right first time, the hardware AFC tracks, and at
 the bench it catches about 88% of the ISS's slots with a simple wire whip. The
 interesting part is not sensitivity but frequency handling: the RFM69 has a
 **hardware AFC and reports frequency error directly**, so it gives a far cleaner
-drift measurement than the software loop's ±1.5 kHz limit cycle can. The two may
-end up complementary — the SX1262 as the receiver, the RFM69 as the instrument.
+drift measurement than the software loop's ±1.5 kHz limit cycle can. That is how
+it is used: **the SX1262 is the receiver, the RFM69 is the instrument** — see
+"Checked against a hardware FEI" above for the side-by-side that decided it.
 It needs **RadioLib 7.8.1 or later** (see the gotchas below).
 
 ## Protocol notes
@@ -232,7 +262,7 @@ and the control channels if you want to add data.
 | `davis-hop/` | **the receiver.** Hop follower with the AFC. Start here. |
 | `davis-sweep/` | measurement sketch — sweeps the offset to map the plateau |
 | `davis-rx/` | single-channel receiver, the simplest starting point |
-| `davis-rf69/` | RFM69 port (Feather M0); runs, logs frequency error. Needs RadioLib ≥ 7.8.1 |
+| `davis-rf69/` | RFM69 port (Feather M0); the frequency-error instrument. Needs RadioLib ≥ 7.8.1 |
 | `raw-dump/`, `rssi-scan/`, `burst-watch/` | bring-up and RF-siting diagnostics |
 | `service/wxrx.py` | parses the serial stream, serves a web page + Prometheus metrics |
 | `service/msgtype-log.py` | logs raw message-type payloads (for the 0x3 question) |
